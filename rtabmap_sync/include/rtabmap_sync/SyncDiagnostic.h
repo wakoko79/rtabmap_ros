@@ -49,11 +49,31 @@ class SyncDiagnostic {
         diagnosticTimer_ = ros::NodeHandle().createTimer(ros::Duration(1), &SyncDiagnostic::diagnosticTimerCallback, this);
     }
 
-    void tick(const ros::Time & stamp, double targetFrequency = 0)
+    void resetRecentlyTickedFlag()
     {
-        frequencyStatus_.tick();
-        timeStampStatus_.tick(stamp);
+        hadRecentlyTicked_ = false;
+    }
+
+    void tick(const ros::Time & stamp, double targetFrequency = 0)
+    {   
+        // ROS_WARN("*** Called tick(): %lu, %f", stamp.toNSec() , targetFrequency);
+        hadRecentlyTicked_ = true;      // a flag to detect if it has previously ticked
+        boost::lock_guard<boost::mutex> guard(mtx_);
         double singlePeriod = stamp.toSec() - lastCallbackCalledStamp_;
+
+        // if given stamp is going back in time or exact, it is invalid
+        if (singlePeriod <= 0.0)
+        {
+            // a tick with an invalid stamp can still change the targetfrequency
+            if(targetFrequency>0)
+            {
+                targetFrequency_ = targetFrequency;
+            }
+            return;
+        }
+
+        frequencyStatus_.tick();
+        timeStampStatus_.tick(stamp.toSec());
 
         window_.push_back(singlePeriod);
         if(window_.size() > windowSize_)
@@ -81,6 +101,14 @@ class SyncDiagnostic {
         lastCallbackCalledStamp_ = stamp.toSec();
     }
 
+    void tickIfNotRecentlyTicked(const ros::Time & stamp, double targetFrequency = 0)
+    {
+        if(!hadRecentlyTicked_)
+        {
+            tick(stamp, targetFrequency);
+        }
+    }
+
 private:
     void diagnosticTimerCallback(const ros::TimerEvent& event)
     {
@@ -103,6 +131,8 @@ private:
         double targetFrequency_;
         int windowSize_;
         std::deque<double> window_;
+        boost::mutex mtx_;
+        bool hadRecentlyTicked_ = false;
 
 };
 

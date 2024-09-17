@@ -730,6 +730,9 @@ void CommonDataSubscriber::setupCallbacks(
 
 CommonDataSubscriber::~CommonDataSubscriber()
 {
+	// wait for thread to finish
+	WAIT_FOR_THREAD_AT_DESTRUCTOR();
+	
 	// RGB + Depth
 	SYNC_DEL(depth);
 	SYNC_DEL(depthScan2d);
