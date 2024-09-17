@@ -65,18 +65,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Templates for finding index of a type in a parameter pack, __::value == -1 if type is not found
 // Example usage: int idxLaser = find_first_type<0, sensor_msgs::LaserScanConstPtr, Args...>::value;
 
-// template <typename What>
-// bool constexpr containsType() {
-// 	return false;
-// }
-
-// template <typename What, typename A, typename... Tail>
-// bool constexpr containsType() {
-// 	fprintf(stderr, "^ Compare [%s] and [%s]: %d...\n", typeid(What).name(), typeid(A).name(), std::is_same<What, std::remove_cv_t<std::remove_reference_t<A>>>::value);
-// 	bool retval = std::is_same<What, std::remove_cv<std::remove_reference<A>>>::value ? true : containsType<What, Tail...>();
-// 	return retval;
-// }
-
 // DESCRIPTION: This template will find the index TYPE_TO_FIND in the parameter pack PARAMETER_TYPES... in COMPILE TIME.
 //				This will ignore constant, volatile, and reference qualifiers.
 //				This will have a value of -1 when TYPE_TO_FIND is not found in the PARAMETER_TYPES...
@@ -160,7 +148,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 		template<typename... Args> \
 		static void MyFunc(ros::Time& data_stamp, Args&&... args) { \
 			data_stamp = std::get<idx>(std::forward_as_tuple(args...))->header.stamp; \
-			/*ROS_WARN("-----positive: %d, %f", idx, data_stamp.toSec());*/ \
 		}; \
 	}; \
 	 \
@@ -177,11 +164,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 		dummy<idx, std::conditional_t<idx != -1, std::integral_constant<bool,true>::type, std::integral_constant<bool,false>::type > >::MyFunc(stamp, args...); \
 	}; \
 	 \
-	/*template<typename Arg> \
-	static void printros(const Arg& arg) \
-	{ \
-		ROS_WARN("**TIME %s: %f", typeid(Arg).name(), arg->header.stamp.toSec()); \
-	};*/ \
 
 
 
@@ -196,61 +178,32 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 	template<typename ClassOfCaller, typename... Args> \
 	inline static void genericThreadSpawnerCallback(ClassOfCaller *class_instance, const std::function<void()> & boundCB, Args&&... args) \
 	{ \
-		/* ROS_WARN("########### genericThreadSpawnerCallback."); */ \
-		/*constexpr int idxLaser = find_first_type<0, sensor_msgs::LaserScanConstPtr, Args...>::value; \
-		constexpr int idxPCL2 = find_first_type<0, sensor_msgs::PointCloud2ConstPtr, Args...>::value; \
-		constexpr int idxCamInfo = find_first_type<0, sensor_msgs::CameraInfoConstPtr, Args...>::value; \
-		ROS_WARN("** LASERSCAN %s [%d]", idxLaser==-1 ? "does NOT exist " : "DO exist", idxLaser); \
-		ROS_WARN("** PCL2 %s [%d]", idxPCL2==-1 ? "does NOT exist " : "DO exist", idxPCL2); \
-		ROS_WARN("** CAMINFO %s [%d]", idxCamInfo==-1 ? "does NOT exist " : "DO exist", idxCamInfo);*/ \
 		 \
 		ros::Time data_stamp; \
 		constexpr int idx_for_stamp = getArgIndexForStamp<Args...>(); \
 		getStampForTick<idx_for_stamp, Args...>(data_stamp, args...); \
 		 \
-		/* ROS_WARN("** Index for stamp: %d", idx_for_stamp); \
-		ROS_WARN("** TIME for stamp: %f", data_stamp.toSec() ); \
-		ROS_WARN("** TIME now: %f", ros::Time::now().toSec()); */ \
-		 \
-		/*using expander = int[]; \
-		(void)expander{0, ((void)printros(std::forward<Args>(args)), 0)...};*/ \
-		 \
-		/*double tnow = ros::Time::now().toSec(); \
-		double tdata = data_stamp.toSec(); \
-		double tdiff = tnow - tdata;*/ \
-		 \
 		/* check if threadProcessData is running*/ \
 		if (class_instance->dpThreadRunning_ == true) \
 		{	/* thread is running, just tick*/ \
-			/* class_instance->tick(data_stamp, 0.0);*/ \
-			/* ROS_WARN("########### TICKING."); */ \
 			if(class_instance->syncDiagnostic_.get()) \
 			{ \
 				class_instance->syncDiagnostic_->tick(data_stamp, 0.0); \
 			} \
-			/*ROS_WARN("** Skipped processing: tnow, diff =<%f, %f>", tnow, tdiff); \
-			ROS_WARN("** Prev thread still running [%s].\n*** Will not use data from synchronizer... Exiting depthScan3dCallback()\n############\n", (boost::lexical_cast<std::string>(class_instance->threadDataProcessing_->get_id())).c_str());*/ \
 		}  \
 		\
 		if (class_instance->dpThreadRunning_ == false) \
 		{ \
-			/*ROS_WARN("** Prev thread is NOT running.");*/ \
 			if(class_instance->threadDataProcessing_ != 0) \
 			{ \
-				/* ROS_WARN("*** Prev thread is NOT NULL, check if joinable..."); */ \
 				if(class_instance->threadDataProcessing_->joinable()){ \
-					/* ROS_WARN("**** Prev thread is joinable..."); */ \
 					class_instance->threadDataProcessing_->join(); \
 					delete class_instance->threadDataProcessing_; \
 					class_instance->threadDataProcessing_ = nullptr; \
-					/* ROS_WARN("***** Just joined prev thread."); */ \
 				} \
 			} \
-			/* ROS_WARN("*** SPAWNING new thread for data.. \n"); \
-			ROS_WARN("*** Processed data: tnow, diff =<%f, %f>\n", tnow, tdiff); */ \
 			class_instance->dpThreadRunning_ = true; \
 			class_instance->threadDataProcessing_ = new boost::thread(boundCB);	/*// boundCB should be std::bind(CB, this, args...)*/ \
-			/* ROS_WARN("**** Spawned new processing thread [%s]... Exiting genericThreadSpawnerCallback()\n############\n", (boost::lexical_cast<std::string>(class_instance->threadDataProcessing_->get_id())).c_str()); */ \
 		} \
 	}; \
 
@@ -365,11 +318,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 		void PREFIX##Callback(const MSG0##ConstPtr&, const MSG1##ConstPtr&, const MSG2##ConstPtr&, const MSG3##ConstPtr&); \
 		void PREFIX##ThreadedWrapperCallback(MSG0##ConstPtr a, MSG1##ConstPtr b, MSG2##ConstPtr c, MSG3##ConstPtr d) \
 		{ \
-			/* ROS_WARN("@@@@@ calling original callback.."); */ \
-			/*ROS_WARN("!!!!! newthread MSG0 use_count: %ld ", a.use_count());*/ \
 			syncDiagnostic_->resetRecentlyTickedFlag(); \
 			PREFIX##Callback(a, b, c, d); \
-			/* ROS_WARN("@@@@@ exiting the wrapper for the original callback.. \n"); */ \
 			if(syncDiagnostic_.get()) /* If the callback did NOT tick, we call tick here, just use the 1st argument as stamp source */ \
 			{ \
 				syncDiagnostic_->tickIfNotRecentlyTicked(a->header.stamp, 0.0); \
@@ -379,7 +329,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 		template <typename CallerClass> \
 		void PREFIX##ThreadSpawnerCallback(const MSG0##ConstPtr& a, const MSG1##ConstPtr& b, const MSG2##ConstPtr& c, const MSG3##ConstPtr& d) \
 		{ \
-			/*ROS_WARN("!!!!! oldthread MSG0 use_count: %ld", a.use_count());*/ \
 			auto fp = std::bind(&CallerClass::PREFIX##ThreadedWrapperCallback, this, a, b, c, d); \
 			genericThreadSpawnerCallback(this, fp, a, b, c, d); \
 		}; \
@@ -464,7 +413,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // *****							The only difference with non-threaded version is these macros calls PREFIX##ThreadSpawnerCallback() instead of PREFIX##Callback()
 
 #define SYNC_DECL2_THREADED(CLASS, PREFIX, APPROX, QUEUE_SIZE, SUB0, SUB1) \
-		fprintf(stderr, "\n\n\n\n USING prefix: [" #PREFIX "Callback]\n\n\n\n\n"); \
+		/*fprintf(stderr, "\n\n\n\n USING prefix: [" #PREFIX "Callback]\n\n\n\n\n"); */ \
 		if(APPROX) \
 		{ \
 			PREFIX##ApproximateSync_ = new message_filters::Synchronizer<PREFIX##ApproximateSyncPolicy>( \
@@ -484,7 +433,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 				SUB1.getTopic().c_str());
 
 #define SYNC_DECL3_THREADED(CLASS, PREFIX, APPROX, QUEUE_SIZE, SUB0, SUB1, SUB2) \
-		fprintf(stderr, "\n\n\n\n USING prefix: [" #PREFIX "Callback]\n\n\n\n\n"); \
+		/*fprintf(stderr, "\n\n\n\n USING prefix: [" #PREFIX "Callback]\n\n\n\n\n"); */ \
 		if(APPROX) \
 		{ \
 			PREFIX##ApproximateSync_ = new message_filters::Synchronizer<PREFIX##ApproximateSyncPolicy>( \
@@ -505,7 +454,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 				SUB2.getTopic().c_str());
 
 #define SYNC_DECL4_THREADED(CLASS, PREFIX, APPROX, QUEUE_SIZE, SUB0, SUB1, SUB2, SUB3) \
-		fprintf(stderr, "\n\n\n\n USING prefix: [" #PREFIX "Callback]\n\n\n\n\n"); \
+		/*fprintf(stderr, "\n\n\n\n USING prefix: [" #PREFIX "Callback]\n\n\n\n\n"); */ \
 		if(APPROX) \
 		{ \
 			PREFIX##ApproximateSync_ = new message_filters::Synchronizer<PREFIX##ApproximateSyncPolicy>( \
@@ -527,7 +476,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 				SUB3.getTopic().c_str());
 
 #define SYNC_DECL5_THREADED(CLASS, PREFIX, APPROX, QUEUE_SIZE, SUB0, SUB1, SUB2, SUB3, SUB4) \
-		fprintf(stderr, "\n\n\n\n USING prefix: [" #PREFIX "Callback]\n\n\n\n\n"); \
+		/*fprintf(stderr, "\n\n\n\n USING prefix: [" #PREFIX "Callback]\n\n\n\n\n"); */ \
 		if(APPROX) \
 		{ \
 			PREFIX##ApproximateSync_ = new message_filters::Synchronizer<PREFIX##ApproximateSyncPolicy>( \
@@ -550,7 +499,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 				SUB4.getTopic().c_str());
 
 #define SYNC_DECL6_THREADED(CLASS, PREFIX, APPROX, QUEUE_SIZE, SUB0, SUB1, SUB2, SUB3, SUB4, SUB5) \
-		fprintf(stderr, "\n\n\n\n USING prefix: [" #PREFIX "Callback]\n\n\n\n\n"); \
+		/*fprintf(stderr, "\n\n\n\n USING prefix: [" #PREFIX "Callback]\n\n\n\n\n"); */ \
 		if(APPROX) \
 		{ \
 			PREFIX##ApproximateSync_ = new message_filters::Synchronizer<PREFIX##ApproximateSyncPolicy>( \
@@ -574,7 +523,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 				SUB5.getTopic().c_str());
 
 #define SYNC_DECL7_THREADED(CLASS, PREFIX, APPROX, QUEUE_SIZE, SUB0, SUB1, SUB2, SUB3, SUB4, SUB5, SUB6) \
-		fprintf(stderr, "\n\n\n\n USING prefix: [" #PREFIX "Callback]\n\n\n\n\n"); \
+		/*fprintf(stderr, "\n\n\n\n USING prefix: [" #PREFIX "Callback]\n\n\n\n\n"); */ \
 		if(APPROX) \
 		{ \
 			PREFIX##ApproximateSync_ = new message_filters::Synchronizer<PREFIX##ApproximateSyncPolicy>( \
@@ -599,7 +548,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 				SUB6.getTopic().c_str());
 
 #define SYNC_DECL8_THREADED(CLASS, PREFIX, APPROX, QUEUE_SIZE, SUB0, SUB1, SUB2, SUB3, SUB4, SUB5, SUB6, SUB7) \
-		fprintf(stderr, "\n\n\n\n USING prefix: [" #PREFIX "Callback]\n\n\n\n\n"); \
+		/*fprintf(stderr, "\n\n\n\n USING prefix: [" #PREFIX "Callback]\n\n\n\n\n"); */ \
 		if(APPROX) \
 		{ \
 			PREFIX##ApproximateSync_ = new message_filters::Synchronizer<PREFIX##ApproximateSyncPolicy>( \

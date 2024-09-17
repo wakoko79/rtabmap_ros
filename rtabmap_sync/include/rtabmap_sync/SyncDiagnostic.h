@@ -56,7 +56,6 @@ class SyncDiagnostic {
 
     void tick(const ros::Time & stamp, double targetFrequency = 0)
     {   
-        // ROS_WARN("*** Called tick(): %lu, %f", stamp.toNSec() , targetFrequency);
         hadRecentlyTicked_ = true;      // a flag to detect if it has previously ticked
         boost::lock_guard<boost::mutex> guard(mtx_);
         double singlePeriod = stamp.toSec() - lastCallbackCalledStamp_;
